@@ -1,0 +1,3 @@
+[submodule "external/lpc-generator"]
+	path = external/lpc-generator
+	url = https://github.com/LiberatedPixelCup/Universal-LPC-Spritesheet-Character-Generator
