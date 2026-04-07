@@ -3,21 +3,32 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useLpcAnimation } from '../hooks/useLpcWalkAnimation'
 import {
+    getLpcSheetCatalogEntry,
+    type LpcSheetCatalogEntry,
+    type LpcSheetCatalogLayer,
+} from '../types/lpc-sheet-catalog'
+import {
     LPC_HAIR_COLORS,
     LPC_HAIR_STYLES,
     resolveLpcAnimationSpriteName,
     resolveLpcOrientation,
     type LpcAnimationName,
     type LpcBodyType,
+    type LpcCatalogClothingItem,
     type LpcCharacterDefinition,
     type LpcClothingItem,
     type LpcCosmeticItem,
     type LpcHeadStyle,
     type LpcOrientation,
+    type LpcSpritePathClothingItem,
 } from '../types/lpc-character'
 
 const FRAME_SIZE = 64
 const SPRITES_BASE = '/external/lpc-generator/spritesheets'
+const BODY_Z_POS = 10
+const HEAD_Z_POS = 100
+const FACE_Z_POS = 101
+const HAIR_Z_POS = 120
 
 const DIRECTION_TO_ROW: Record<LpcOrientation, number> = {
     up: 0,
@@ -62,7 +73,29 @@ interface ResolvedCharacter {
 
 interface ResolvedCosmetic {
     label: string
+    zPos: number
     candidates: string[]
+}
+
+interface ResolvedImageLayer {
+    label: string
+    zPos: number
+    image: HTMLImageElement
+}
+
+interface ResolvedRenderableLayer {
+    label: string
+    zPos: number
+    candidates: string[]
+    availableAnimations?: string[]
+}
+
+export interface LpcMissingLayerWarning {
+    label: string
+    zPos: number
+    animation: LpcAnimationName
+    candidatesTried: number
+    availableAnimations?: string[]
 }
 
 interface LpcCharacterProps {
@@ -70,6 +103,9 @@ interface LpcCharacterProps {
     scale?: number
     fps?: number
     showDetails?: boolean
+    showWarnings?: boolean
+    hideOnMissingLayers?: boolean
+    onMissingLayers?: (warnings: LpcMissingLayerWarning[]) => void
 }
 
 function loadImage(src: string) {
@@ -129,6 +165,15 @@ function buildBodyCandidates(resolved: ResolvedCharacter) {
     )
 }
 
+function createRenderableLayer(
+    label: string,
+    zPos: number,
+    candidates: string[],
+    availableAnimations?: string[],
+): ResolvedRenderableLayer {
+    return { label, zPos, candidates, availableAnimations }
+}
+
 function buildHeadCandidates(resolved: ResolvedCharacter) {
     const spriteName = resolveLpcAnimationSpriteName(resolved.animation)
     const folder = HEAD_STYLE_TO_FOLDER[resolved.headStyle]
@@ -151,24 +196,8 @@ const CLOTHING_BODY_FALLBACKS: Record<LpcBodyType, readonly LpcBodyType[]> = {
     child: ['child', 'male'],
 }
 
-// Clothing-specific animation fallbacks. Many items only ship the common 6 animations.
-const CLOTHING_ANIM_FALLBACKS: Partial<Record<string, readonly string[]>> = {
-    backslash: ['backslash', 'slash', 'walk'],
-    halfslash: ['halfslash', 'slash', 'walk'],
-    combat_idle: ['combat_idle', 'idle', 'walk'],
-    climb: ['climb', 'walk'],
-    emote: ['emote', 'idle', 'walk'],
-    sit: ['sit', 'idle', 'walk'],
-    run: ['run', 'walk'],
-    jump: ['jump', 'walk'],
-}
-
-function getClothingAnimCandidates(spriteName: string): readonly string[] {
-    return CLOTHING_ANIM_FALLBACKS[spriteName] ?? [spriteName, 'walk']
-}
-
 function buildClothingCandidates(
-    item: LpcClothingItem,
+    item: LpcSpritePathClothingItem,
     animation: LpcAnimationName,
     bodyType: LpcBodyType,
     headStyle: LpcHeadStyle,
@@ -190,23 +219,141 @@ function buildClothingCandidates(
         if (!seen.has(f)) { seen.add(f); uniqueFolders.push(f) }
     }
 
-    const animVariants = getClothingAnimCandidates(spriteName)
     const candidates: string[] = []
 
-    for (const anim of animVariants) {
-        for (const folder of uniqueFolders) {
-            const base = folder
-                ? `${SPRITES_BASE}/${resolvedPath}/${folder}`
-                : `${SPRITES_BASE}/${resolvedPath}`
-            if (color) candidates.push(`${base}/${anim}/${color}.png`)
-            candidates.push(`${base}/${anim}.png`)
-        }
-        // Kimono-style: color is a folder name, then universal/{sex}/{anim}.png
-        if (color) candidates.push(`${SPRITES_BASE}/${resolvedPath}/${color}/universal/${sexFolder}/${anim}.png`)
-        candidates.push(`${SPRITES_BASE}/${resolvedPath}/universal/${sexFolder}/${anim}.png`)
+    for (const folder of uniqueFolders) {
+        const base = folder
+            ? `${SPRITES_BASE}/${resolvedPath}/${folder}`
+            : `${SPRITES_BASE}/${resolvedPath}`
+        if (color) candidates.push(`${base}/${spriteName}/${color}.png`)
+        candidates.push(`${base}/${spriteName}.png`)
     }
 
+    // Kimono-style: color is a folder name, then universal/{sex}/{anim}.png
+    if (color) candidates.push(`${SPRITES_BASE}/${resolvedPath}/${color}/universal/${sexFolder}/${spriteName}.png`)
+    candidates.push(`${SPRITES_BASE}/${resolvedPath}/universal/${sexFolder}/${spriteName}.png`)
+
     return candidates
+}
+
+function isCatalogClothingItem(item: LpcClothingItem): item is LpcCatalogClothingItem {
+    return 'sheet' in item
+}
+
+function resolveCatalogEntry(sheet: LpcCatalogClothingItem['sheet']) {
+    return typeof sheet === 'string' ? getLpcSheetCatalogEntry(sheet) : sheet
+}
+
+function getSheetLayerAnimationCandidates(
+    entry: LpcSheetCatalogEntry,
+    animation: LpcAnimationName,
+    layer: LpcSheetCatalogLayer,
+): readonly string[] {
+    const requested = resolveLpcAnimationSpriteName(animation)
+
+    if (layer.customAnimation) {
+        return layer.customAnimation === requested ? [layer.customAnimation] : []
+    }
+
+    if (entry.animations.length === 0) {
+        return [requested]
+    }
+
+    return entry.animations.includes(requested) ? [requested] : []
+}
+
+function getCatalogLayerBasePaths(layer: LpcSheetCatalogLayer, bodyType: LpcBodyType) {
+    const paths: string[] = []
+    const seen = new Set<string>()
+
+    for (const fallbackBodyType of CLOTHING_BODY_FALLBACKS[bodyType]) {
+        const pathValue = layer.bodyTypePaths[fallbackBodyType]
+        if (!pathValue) {
+            continue
+        }
+
+        const normalizedPath = normalizePath(pathValue)
+        if (!seen.has(normalizedPath)) {
+            seen.add(normalizedPath)
+            paths.push(normalizedPath)
+        }
+    }
+
+    return paths
+}
+
+function buildCatalogLayerCandidates(
+    entry: LpcSheetCatalogEntry,
+    layer: LpcSheetCatalogLayer,
+    variant: string | undefined,
+    animation: LpcAnimationName,
+    bodyType: LpcBodyType,
+) {
+    const candidates: string[] = []
+    const basePaths = getCatalogLayerBasePaths(layer, bodyType)
+    const animationCandidates = getSheetLayerAnimationCandidates(entry, animation, layer)
+
+    for (const basePath of basePaths) {
+        for (const animationName of animationCandidates) {
+            if (variant) {
+                candidates.push(`${SPRITES_BASE}/${basePath}/${animationName}/${variant}.png`)
+            }
+            candidates.push(`${SPRITES_BASE}/${basePath}/${animationName}.png`)
+        }
+    }
+
+    return createRenderableLayer(
+        `${entry.name}${variant ? ` ${formatLabel(variant)}` : ''}`,
+        layer.zPos,
+        candidates,
+        entry.animations,
+    )
+}
+
+function resolveClothingLayers(
+    character: LpcCharacterDefinition | undefined,
+    resolved: ResolvedCharacter,
+): ResolvedRenderableLayer[] {
+    const clothingItems = character?.clothes?.filter((item) => item.visible ?? true) ?? []
+    const layers: ResolvedRenderableLayer[] = []
+
+    for (const item of clothingItems) {
+        if (isCatalogClothingItem(item)) {
+            const entry = resolveCatalogEntry(item.sheet)
+            if (!entry) {
+                continue
+            }
+
+            for (const layer of entry.layers) {
+                layers.push(
+                    buildCatalogLayerCandidates(
+                        entry,
+                        layer,
+                        item.variant,
+                        resolved.animation,
+                        resolved.bodyType,
+                    ),
+                )
+            }
+
+            continue
+        }
+
+        layers.push(
+            createRenderableLayer(
+                normalizePath(item.spritePath),
+                HEAD_Z_POS,
+                buildClothingCandidates(
+                    item,
+                    resolved.animation,
+                    resolved.bodyType,
+                    resolved.headStyle,
+                ),
+            ),
+        )
+    }
+
+    return layers
 }
 
 function buildCosmeticCandidates(
@@ -251,6 +398,7 @@ function resolveCosmetics(
     if (items.length > 0) {
         return items.map((item) => ({
             label: normalizePath(item.spritePath),
+            zPos: HAIR_Z_POS,
             candidates: buildCosmeticCandidates(
                 item,
                 resolved.animation,
@@ -269,6 +417,7 @@ function resolveCosmetics(
         return [
             {
                 label: formatLabel(requestedStyle),
+                zPos: HAIR_Z_POS,
                 candidates: buildCosmeticCandidates(
                     { spritePath: `hair/${requestedStyle}/${ageFolder}`, color: requestedColor },
                     resolved.animation,
@@ -284,6 +433,7 @@ function resolveCosmetics(
     return [
         {
             label: `${formatLabel(style)} ${formatLabel(color)}`,
+            zPos: HAIR_Z_POS,
             candidates: buildCosmeticCandidates(
                 { spritePath: `hair/${style}/${ageFolder}`, color },
                 resolved.animation,
@@ -294,14 +444,27 @@ function resolveCosmetics(
     ]
 }
 
-export function LpcCharacter({ character, scale = 3, fps = 8, showDetails = true }: LpcCharacterProps) {
+export function LpcCharacter({
+    character,
+    scale = 3,
+    fps = 8,
+    showDetails = true,
+    showWarnings = true,
+    hideOnMissingLayers = false,
+    onMissingLayers,
+}: LpcCharacterProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
-    const [images, setImages] = useState<HTMLImageElement[] | null>(null)
+    const [images, setImages] = useState<ResolvedImageLayer[] | null>(null)
+    const [missingLayers, setMissingLayers] = useState<LpcMissingLayerWarning[]>([])
     const [loadError, setLoadError] = useState<string | null>(null)
 
     const resolvedCharacter = useMemo(() => resolveCharacter(character), [character])
     const cosmetics = useMemo(
         () => resolveCosmetics(character, resolvedCharacter),
+        [character, resolvedCharacter],
+    )
+    const clothingLayers = useMemo(
+        () => resolveClothingLayers(character, resolvedCharacter),
         [character, resolvedCharacter],
     )
 
@@ -315,58 +478,70 @@ export function LpcCharacter({ character, scale = 3, fps = 8, showDetails = true
         let isDisposed = false
 
         async function loadLayers() {
-            const loaded: HTMLImageElement[] = []
+            const loaded: ResolvedImageLayer[] = []
+            const missing: LpcMissingLayerWarning[] = []
+
+            async function tryLoadLayer(
+                label: string,
+                zPos: number,
+                candidates: string[],
+                availableAnimations?: string[],
+            ) {
+                const image = await loadFirstAvailable(candidates)
+                if (image) {
+                    loaded.push({ image, label, zPos })
+                    return
+                }
+
+                missing.push({
+                    label,
+                    zPos,
+                    animation: resolvedCharacter.animation,
+                    candidatesTried: candidates.length,
+                    availableAnimations,
+                })
+            }
 
             if (resolvedCharacter.showBody) {
-                const bodyImage = await loadFirstAvailable(buildBodyCandidates(resolvedCharacter))
-                if (bodyImage) {
-                    loaded.push(bodyImage)
-                }
+                await tryLoadLayer('body', BODY_Z_POS, buildBodyCandidates(resolvedCharacter))
             }
 
             if (resolvedCharacter.showHead) {
-                const headImage = await loadFirstAvailable(buildHeadCandidates(resolvedCharacter))
-                if (headImage) {
-                    loaded.push(headImage)
-                }
+                await tryLoadLayer('head', HEAD_Z_POS, buildHeadCandidates(resolvedCharacter))
             }
 
             if (resolvedCharacter.showFace) {
-                const faceImage = await loadFirstAvailable(buildFaceCandidates(resolvedCharacter))
-                if (faceImage) {
-                    loaded.push(faceImage)
-                }
+                await tryLoadLayer('face', FACE_Z_POS, buildFaceCandidates(resolvedCharacter))
             }
 
-            const clothingItems = character?.clothes?.filter((c) => c.visible ?? true) ?? []
-            for (const clothingItem of clothingItems) {
-                const clothingImage = await loadFirstAvailable(
-                    buildClothingCandidates(
-                        clothingItem,
-                        resolvedCharacter.animation,
-                        resolvedCharacter.bodyType,
-                        resolvedCharacter.headStyle,
-                    ),
+            for (const clothingLayer of clothingLayers) {
+                await tryLoadLayer(
+                    clothingLayer.label,
+                    clothingLayer.zPos,
+                    clothingLayer.candidates,
+                    clothingLayer.availableAnimations,
                 )
-                if (clothingImage) {
-                    loaded.push(clothingImage)
-                }
             }
 
             for (const cosmetic of cosmetics) {
-                const cosmeticImage = await loadFirstAvailable(cosmetic.candidates)
-                if (cosmeticImage) {
-                    loaded.push(cosmeticImage)
-                }
+                await tryLoadLayer(cosmetic.label, cosmetic.zPos, cosmetic.candidates)
             }
+
+            loaded.sort((left, right) => left.zPos - right.zPos)
 
             if (!isDisposed) {
                 setImages(loaded)
+                setMissingLayers(missing)
                 setLoadError(null)
+            }
+
+            if (missing.length > 0) {
+                console.warn('LpcCharacter: unresolved sprite layers', missing)
             }
         }
 
         setImages(null)
+        setMissingLayers([])
         loadLayers().catch((error: Error) => {
             if (!isDisposed) {
                 setLoadError(error.message)
@@ -376,7 +551,15 @@ export function LpcCharacter({ character, scale = 3, fps = 8, showDetails = true
         return () => {
             isDisposed = true
         }
-    }, [resolvedCharacter, cosmetics])
+    }, [resolvedCharacter, clothingLayers, cosmetics])
+
+    useEffect(() => {
+        if (!onMissingLayers) {
+            return
+        }
+
+        onMissingLayers(missingLayers)
+    }, [missingLayers, onMissingLayers])
 
     useEffect(() => {
         if (!images || !canvasRef.current) {
@@ -403,7 +586,7 @@ export function LpcCharacter({ character, scale = 3, fps = 8, showDetails = true
 
         for (const image of images) {
             context.drawImage(
-                image,
+                image.image,
                 sourceX,
                 sourceY,
                 FRAME_SIZE,
@@ -415,6 +598,8 @@ export function LpcCharacter({ character, scale = 3, fps = 8, showDetails = true
             )
         }
     }, [frame, images, resolvedCharacter.orientation, scale])
+
+    const shouldHideCharacter = hideOnMissingLayers && missingLayers.length > 0
 
     if (loadError) {
         return (
@@ -449,25 +634,50 @@ export function LpcCharacter({ character, scale = 3, fps = 8, showDetails = true
                     boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.08)',
                 }}
             >
-                <canvas
-                    ref={canvasRef}
-                    aria-label="LPC character"
-                    style={{
-                        width: FRAME_SIZE * scale,
-                        height: FRAME_SIZE * scale,
-                        imageRendering: 'pixelated',
-                    }}
-                />
+                {shouldHideCharacter ? (
+                    <Stack align="center" gap={2} py="md" px="sm" style={{ width: FRAME_SIZE * scale }}>
+                        <Text c="yellow.3" size="xs" ta="center">
+                            Character hidden due to missing layers.
+                        </Text>
+                    </Stack>
+                ) : (
+                    <canvas
+                        ref={canvasRef}
+                        aria-label="LPC character"
+                        style={{
+                            width: FRAME_SIZE * scale,
+                            height: FRAME_SIZE * scale,
+                            imageRendering: 'pixelated',
+                        }}
+                    />
+                )}
             </Box>
 
             {showDetails ? (
                 <Text c="dimmed" size="sm" ta="center">
                     {formatLabel(resolvedCharacter.animation)} / {resolvedCharacter.orientation}
-                    {cosmetics.length > 0
-                        ? ` / layers: ${cosmetics
+                    {clothingLayers.length + cosmetics.length > 0
+                        ? ` / layers: ${[...clothingLayers, ...cosmetics]
                             .map((item) => item.label)
                             .slice(0, 3)
-                            .join(', ')}${cosmetics.length > 3 ? '...' : ''}`
+                            .join(', ')}${clothingLayers.length + cosmetics.length > 3 ? '...' : ''}`
+                        : ''}
+                </Text>
+            ) : null}
+
+            {showWarnings && missingLayers.length > 0 ? (
+                <Text c="yellow.3" size="xs" ta="center">
+                    Missing {missingLayers.length} layer{missingLayers.length > 1 ? 's' : ''} for
+                    {' '}
+                    {formatLabel(resolvedCharacter.animation)}:
+                    {' '}
+                    {missingLayers
+                        .map((layer) => layer.label)
+                        .slice(0, 2)
+                        .join(', ')}
+                    {missingLayers.length > 2 ? '...' : ''}
+                    {missingLayers[0]?.availableAnimations && missingLayers[0].availableAnimations!.length > 0
+                        ? ` / available: ${missingLayers[0].availableAnimations!.slice(0, 4).join(', ')}${missingLayers[0].availableAnimations!.length > 4 ? '...' : ''}`
                         : ''}
                 </Text>
             ) : null}

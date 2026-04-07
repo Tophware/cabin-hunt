@@ -12,7 +12,7 @@ import {
   createTheme,
 } from '@mantine/core'
 
-import { LpcCharacter } from './components/LpcCharacter'
+import { LpcCharacter, type LpcMissingLayerWarning } from './components/LpcCharacter'
 import { defineLpcCharacter } from './types/lpc-character'
 
 const theme = createTheme({
@@ -26,19 +26,28 @@ const theme = createTheme({
 })
 
 const demoCharacter = defineLpcCharacter({
-  animation: 'walk',
+  animation: 'run',
   orientation: 'down',
-  body: { type: 'male' },
+  body: { type: 'female' },
   head: { style: 'human_female' },
   face: { style: 'neutral' },
   hair: { color: 'ginger', style: 'bangs_bun' },
   clothes: [
-    { spritePath: 'feet/boots/basic', color: 'brown' },
-    { spritePath: 'dress/bodice' },
+    { sheet: 'feet/boots/feet_boots_basic', variant: 'brown' },
+    { sheet: 'torso/dresses/dress_bodice', variant: 'teal' },
+    { sheet: 'arms/arms_gloves', variant: 'black' },
   ],
 })
 
 function App() {
+
+  const handleMissingLayers = (warnings: LpcMissingLayerWarning[]) => {
+    if (warnings.length > 0) {
+      console.warn('Missing LPC layers:', warnings)
+    }
+  }
+
+
   return (
     <MantineProvider theme={theme} forceColorScheme="dark">
       <Container size="sm" py="xl">
@@ -51,34 +60,42 @@ function App() {
           </Group>
 
           <Text c="dimmed">
-            This preview uses a typed character definition with optional body,
-            head, face, hair, animation, and orientation fields. Omitted fields
-            fall back to defaults.
+            This preview uses the normalized LPC sheet catalog. Clothing now
+            references sheet-definition ids plus variants, and the renderer
+            resolves layered sprites using the source metadata.
           </Text>
 
           <Card withBorder radius="md" shadow="sm" p="xl">
             <Stack gap="md" align="center">
-              <LpcCharacter character={demoCharacter} />
+              <LpcCharacter
+                fps={16}
+                showDetails
+                showWarnings
+                hideOnMissingLayers
+                onMissingLayers={handleMissingLayers}
+                character={demoCharacter}
+              />
 
               <Stack gap={4} align="center">
                 <Title order={4}>LpcCharacter Definition</Title>
                 <Text size="sm" c="dimmed" ta="center">
-                  Pass any, all, or none of the supported character properties.
-                  The component resolves defaults and renders the matching LPC
-                  sprite layers.
+                  Pass catalog-backed clothing selections like
+                  <Text span inherit ff="monospace"> {`{ sheet: 'arms/arms_gloves', variant: 'black' }`}</Text>
+                  . The component looks up the sheet definition, expands its
+                  layers, and draws them in z-order.
                 </Text>
               </Stack>
 
               <Group gap="xs" justify="center">
-                <Badge variant="default">animation: 1h_slash</Badge>
+                <Badge variant="default">animation: walk</Badge>
                 <Badge variant="default">orientation: down</Badge>
-                <Badge variant="default">body: muscular</Badge>
-                <Badge variant="default">hair: random</Badge>
+                <Badge variant="default">body: female</Badge>
+                <Badge variant="default">catalog clothes: 3</Badge>
               </Group>
 
               <Text size="sm" c="dimmed">
-                The renderer is now centered around a reusable LpcCharacter
-                component instead of a hardcoded walking demo.
+                The renderer still supports the older raw sprite-path clothing
+                items, but this demo now uses the catalog format end to end.
               </Text>
             </Stack>
           </Card>

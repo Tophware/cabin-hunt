@@ -1,4 +1,5 @@
 import type { LpcMergeLayer } from './lpc-assets'
+import type { LpcSheetCatalogEntry } from './lpc-sheet-catalog'
 
 export const LPC_BODY_TYPES = [
     'male',
@@ -378,7 +379,17 @@ export type LpcKnownClothingPath =
 /** Path relative to `spritesheets/`. Supports `{bodyType}` and `{sex}` placeholders. */
 export type LpcClothingSpritePath = LpcKnownClothingPath | (string & {})
 
-export interface LpcClothingItem {
+export type LpcCatalogSheetId = string & {}
+
+export interface LpcCatalogClothingItem {
+    /** Catalog entry id or resolved catalog entry from `lpc-sheet-catalog`. */
+    sheet: LpcCatalogSheetId | LpcSheetCatalogEntry
+    /** Variant name from the sheet definition, typically the color/material filename. */
+    variant?: string
+    visible?: boolean
+}
+
+export interface LpcSpritePathClothingItem {
     /**
      * Path to the item relative to `spritesheets/`.
      * The renderer automatically tries body-type and sex sub-folder variants.
@@ -392,6 +403,8 @@ export interface LpcClothingItem {
     color?: string
     visible?: boolean
 }
+
+export type LpcClothingItem = LpcCatalogClothingItem | LpcSpritePathClothingItem
 
 export interface LpcCharacterDefinition {
     animation?: LpcAnimationName
