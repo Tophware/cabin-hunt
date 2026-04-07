@@ -31,7 +31,13 @@ const demoCharacter = defineLpcCharacter({
   body: { type: 'muscular' },
   head: { style: 'human_female' },
   face: { style: 'neutral' },
-  hair: { color: 'carrot', style: 'curly_long' },
+  hair: { color: 'ginger', style: 'bangs_bun' },
+  clothes: [
+    { spritePath: 'torso/aprons/overalls', color: 'green' },
+    { spritePath: 'legs/pants', color: 'black' },
+    { spritePath: 'feet/boots/basic', color: 'brown' },
+    { spritePath: 'arms/gloves', color: 'black' }
+  ],
 })
 
 function App() {

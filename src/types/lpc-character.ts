@@ -195,6 +195,201 @@ export interface LpcCharacterHair {
     items?: LpcCosmeticItem[]
 }
 
+// ---------------------------------------------------------------------------
+// Clothing
+// ---------------------------------------------------------------------------
+
+export const LPC_TORSO_PATHS = [
+    'torso/aprons/apron',
+    'torso/aprons/apron_full',
+    'torso/aprons/apron_half',
+    'torso/aprons/overalls',
+    'torso/aprons/suspenders',
+    'torso/armour/leather',
+    'torso/armour/legion',
+    'torso/armour/plate',
+    'torso/bandage',
+    'torso/chainmail',
+    'torso/clothes/blouse',
+    'torso/clothes/blouse_longsleeve',
+    'torso/clothes/corset',
+    'torso/clothes/longsleeve/formal',
+    'torso/clothes/longsleeve/formal_striped',
+    'torso/clothes/longsleeve/laced',
+    'torso/clothes/longsleeve/longsleeve',
+    'torso/clothes/longsleeve/longsleeve2',
+    'torso/clothes/longsleeve/longsleeve2_buttoned',
+    'torso/clothes/longsleeve/longsleeve2_cardigan',
+    'torso/clothes/longsleeve/longsleeve2_polo',
+    'torso/clothes/longsleeve/longsleeve2_scoop',
+    'torso/clothes/longsleeve/longsleeve2_vneck',
+    'torso/clothes/longsleeve/longsleeves',
+    'torso/clothes/longsleeve/longsleeves_cuffed',
+    'torso/clothes/longsleeve/longsleeves2',
+    'torso/clothes/longsleeve/scoop',
+    'torso/clothes/robe',
+    'torso/clothes/shirt',
+    'torso/clothes/shortsleeve',
+    'torso/clothes/sleeveless',
+    'torso/clothes/tunic',
+    'torso/clothes/tunic_sara',
+    'torso/clothes/vest',
+    'torso/clothes/vest_open',
+    'torso/jacket/collared',
+    'torso/jacket/frock',
+    'torso/jacket/iverness',
+    'torso/jacket/santa',
+    'torso/jacket/tabard',
+    'torso/jacket/trench',
+    'torso/jacket/trim',
+    'torso/waist/belt_belly',
+    'torso/waist/belt_double',
+    'torso/waist/belt_formal',
+    'torso/waist/belt_leather',
+    'torso/waist/belt_leather2',
+    'torso/waist/belt_loose',
+    'torso/waist/belt_mage',
+    'torso/waist/belt_robe',
+    'torso/waist/buckles',
+    'torso/waist/obi',
+    'torso/waist/sash',
+    'torso/waist/sash_narrow',
+    'torso/waist/waistband',
+] as const
+
+export const LPC_LEGS_PATHS = [
+    'legs/armour/plate',
+    'legs/cuffed',
+    'legs/formal',
+    'legs/formal_striped',
+    'legs/fur',
+    'legs/hose',
+    'legs/leggings',
+    'legs/leggings2',
+    'legs/pantaloons',
+    'legs/pants',
+    'legs/pants2',
+    'legs/shorts/short_shorts',
+    'legs/shorts/shorts',
+    'legs/skirts/belle',
+    'legs/skirts/child',
+    'legs/skirts/legion',
+    'legs/skirts/overskirt',
+    'legs/skirts/plain',
+    'legs/skirts/slit',
+    'legs/skirts/straight',
+] as const
+
+export const LPC_FEET_PATHS = [
+    'feet/accessory/plate_toe',
+    'feet/accessory/plate_toe_thick',
+    'feet/armour/plate',
+    'feet/boots/basic',
+    'feet/boots/fold',
+    'feet/boots/revised',
+    'feet/boots/rimmed',
+    'feet/hoofs',
+    'feet/sandals',
+    'feet/shoes/basic',
+    'feet/shoes/ghillies',
+    'feet/shoes/revised',
+    'feet/shoes/sara',
+    'feet/slippers',
+    'feet/socks/ankle',
+    'feet/socks/high',
+    'feet/socks/tabi',
+] as const
+
+export const LPC_ARMS_PATHS = [
+    'arms/armour/plate',
+    'arms/bracers',
+    'arms/gloves',
+    'arms/hands/ring',
+] as const
+
+export const LPC_ACCESSORY_PATHS = [
+    'backpack/backpack',
+    'backpack/basket',
+    'backpack/jetpack',
+    'backpack/squarepack',
+    'backpack/straps',
+    'bauldron',
+    'cape/solid',
+    'cape/solid_behind',
+    'cape/tattered',
+    'cape/tattered_behind',
+    'cape/trim',
+    'dress/bodice',
+    'dress/kimono',
+    'dress/sash',
+    'dress/slit',
+    'hat/cloth',
+    'hat/formal',
+    'hat/headband',
+    'hat/helmet',
+    'hat/holiday',
+    'hat/magic',
+    'hat/pirate',
+    'hat/visor',
+    'neck/amulet/cross',
+    'neck/amulet/dangle',
+    'neck/amulet/star',
+    'neck/capeclip',
+    'neck/capetie',
+    'neck/cravat',
+    'neck/gem/emerald',
+    'neck/gem/pearl',
+    'neck/gem/round',
+    'neck/jabot',
+    'neck/necklace/beaded_large',
+    'neck/necklace/beaded_small',
+    'neck/necklace/chain',
+    'neck/necklace/simple',
+    'neck/scarf',
+    'neck/tie/bowtie',
+    'neck/tie/necktie',
+    'quiver',
+    'shadow',
+    'shield/crusader',
+    'shield/crusader2',
+    'shield/heater',
+    'shield/kite',
+    'shield/round',
+    'shield/spartan',
+    'shoulders/epaulets',
+    'shoulders/leather',
+    'shoulders/legion',
+    'shoulders/mantal',
+    'shoulders/plate',
+    'wrists/cuffs',
+    'wrists/lace',
+] as const
+
+export type LpcKnownClothingPath =
+    | (typeof LPC_TORSO_PATHS)[number]
+    | (typeof LPC_LEGS_PATHS)[number]
+    | (typeof LPC_FEET_PATHS)[number]
+    | (typeof LPC_ARMS_PATHS)[number]
+    | (typeof LPC_ACCESSORY_PATHS)[number]
+
+/** Path relative to `spritesheets/`. Supports `{bodyType}` and `{sex}` placeholders. */
+export type LpcClothingSpritePath = LpcKnownClothingPath | (string & {})
+
+export interface LpcClothingItem {
+    /**
+     * Path to the item relative to `spritesheets/`.
+     * The renderer automatically tries body-type and sex sub-folder variants.
+     * Use `{bodyType}` or `{sex}` placeholders to force a specific variant.
+     * @example 'torso/clothes/tunic'
+     * @example 'legs/pants'
+     * @example 'feet/boots/basic'
+     */
+    spritePath: LpcClothingSpritePath
+    /** Color name matching the PNG filename inside the animation sub-folder. */
+    color?: string
+    visible?: boolean
+}
+
 export interface LpcCharacterDefinition {
     animation?: LpcAnimationName
     orientation?: LpcOrientation
@@ -202,6 +397,7 @@ export interface LpcCharacterDefinition {
     head?: LpcCharacterHead | null
     face?: LpcCharacterFace | null
     hair?: LpcCharacterHair | null
+    clothes?: LpcClothingItem[]
     layers?: LpcMergeLayer[]
 }
 

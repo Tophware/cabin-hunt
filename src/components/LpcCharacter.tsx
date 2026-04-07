@@ -10,6 +10,7 @@ import {
     type LpcAnimationName,
     type LpcBodyType,
     type LpcCharacterDefinition,
+    type LpcClothingItem,
     type LpcCosmeticItem,
     type LpcHeadStyle,
     type LpcOrientation,
@@ -140,6 +141,56 @@ function buildFaceCandidates(resolved: ResolvedCharacter) {
     return [`${SPRITES_BASE}/head/faces/${folder}/neutral/${spriteName}.png`]
 }
 
+// Body-type resolution order for clothing (most specific to most generic).
+const CLOTHING_BODY_FALLBACKS: Record<LpcBodyType, readonly LpcBodyType[]> = {
+    male: ['male'],
+    female: ['female', 'male'],
+    muscular: ['muscular', 'male'],
+    pregnant: ['pregnant', 'female', 'male'],
+    teen: ['teen', 'male', 'female'],
+    child: ['child', 'male'],
+}
+
+function buildClothingCandidates(
+    item: LpcClothingItem,
+    animation: LpcAnimationName,
+    bodyType: LpcBodyType,
+    headStyle: LpcHeadStyle,
+) {
+    const spriteName = resolveLpcAnimationSpriteName(animation)
+    const sexFolder = headStyle === 'human_female' ? 'female' : 'male'
+
+    const resolvedPath = normalizePath(item.spritePath)
+        .replaceAll('{bodyType}', bodyType)
+        .replaceAll('{sex}', sexFolder)
+
+    // Build a de-duplicated folder list: bodyType fallback chain + sex-fallback + thin.
+    const folders = [...new Set([
+        ...CLOTHING_BODY_FALLBACKS[bodyType],
+        sexFolder,
+        'male',
+        'female',
+        'thin',
+    ])] as string[]
+
+    const candidates: string[] = []
+
+    for (const folder of folders) {
+        if (item.color) {
+            candidates.push(`${SPRITES_BASE}/${resolvedPath}/${folder}/${spriteName}/${item.color}.png`)
+        }
+        candidates.push(`${SPRITES_BASE}/${resolvedPath}/${folder}/${spriteName}.png`)
+    }
+
+    // Fallback: no body-type folder (e.g. capes, quivers, accessories).
+    if (item.color) {
+        candidates.push(`${SPRITES_BASE}/${resolvedPath}/${spriteName}/${item.color}.png`)
+    }
+    candidates.push(`${SPRITES_BASE}/${resolvedPath}/${spriteName}.png`)
+
+    return candidates
+}
+
 function buildCosmeticCandidates(
     item: LpcCosmeticItem,
     animation: LpcAnimationName,
@@ -266,6 +317,21 @@ export function LpcCharacter({ character, scale = 3, fps = 8, showDetails = true
                 const faceImage = await loadFirstAvailable(buildFaceCandidates(resolvedCharacter))
                 if (faceImage) {
                     loaded.push(faceImage)
+                }
+            }
+
+            const clothingItems = character?.clothes?.filter((c) => c.visible ?? true) ?? []
+            for (const clothingItem of clothingItems) {
+                const clothingImage = await loadFirstAvailable(
+                    buildClothingCandidates(
+                        clothingItem,
+                        resolvedCharacter.animation,
+                        resolvedCharacter.bodyType,
+                        resolvedCharacter.headStyle,
+                    ),
+                )
+                if (clothingImage) {
+                    loaded.push(clothingImage)
                 }
             }
 
