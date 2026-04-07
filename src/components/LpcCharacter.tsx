@@ -151,6 +151,22 @@ const CLOTHING_BODY_FALLBACKS: Record<LpcBodyType, readonly LpcBodyType[]> = {
     child: ['child', 'male'],
 }
 
+// Clothing-specific animation fallbacks. Many items only ship the common 6 animations.
+const CLOTHING_ANIM_FALLBACKS: Partial<Record<string, readonly string[]>> = {
+    backslash: ['backslash', 'slash', 'walk'],
+    halfslash: ['halfslash', 'slash', 'walk'],
+    combat_idle: ['combat_idle', 'idle', 'walk'],
+    climb: ['climb', 'walk'],
+    emote: ['emote', 'idle', 'walk'],
+    sit: ['sit', 'idle', 'walk'],
+    run: ['run', 'walk'],
+    jump: ['jump', 'walk'],
+}
+
+function getClothingAnimCandidates(spriteName: string): readonly string[] {
+    return CLOTHING_ANIM_FALLBACKS[spriteName] ?? [spriteName, 'walk']
+}
+
 function buildClothingCandidates(
     item: LpcClothingItem,
     animation: LpcAnimationName,
@@ -159,34 +175,36 @@ function buildClothingCandidates(
 ) {
     const spriteName = resolveLpcAnimationSpriteName(animation)
     const sexFolder = headStyle === 'human_female' ? 'female' : 'male'
+    const ageFolder = bodyType === 'child' ? 'child' : 'adult'
+    const color = item.color
 
     const resolvedPath = normalizePath(item.spritePath)
         .replaceAll('{bodyType}', bodyType)
         .replaceAll('{sex}', sexFolder)
+        .replaceAll('{age}', ageFolder)
 
-    // Build a de-duplicated folder list: bodyType fallback chain + sex-fallback + thin.
-    const folders = [...new Set([
-        ...CLOTHING_BODY_FALLBACKS[bodyType],
-        sexFolder,
-        'male',
-        'female',
-        'thin',
-    ])] as string[]
+    // Build ordered probe folders: body-type chain → sex → age → thin → '' (no folder).
+    const uniqueFolders: string[] = []
+    const seen = new Set<string>()
+    for (const f of [...CLOTHING_BODY_FALLBACKS[bodyType], sexFolder, ageFolder, 'thin', '']) {
+        if (!seen.has(f)) { seen.add(f); uniqueFolders.push(f) }
+    }
 
+    const animVariants = getClothingAnimCandidates(spriteName)
     const candidates: string[] = []
 
-    for (const folder of folders) {
-        if (item.color) {
-            candidates.push(`${SPRITES_BASE}/${resolvedPath}/${folder}/${spriteName}/${item.color}.png`)
+    for (const anim of animVariants) {
+        for (const folder of uniqueFolders) {
+            const base = folder
+                ? `${SPRITES_BASE}/${resolvedPath}/${folder}`
+                : `${SPRITES_BASE}/${resolvedPath}`
+            if (color) candidates.push(`${base}/${anim}/${color}.png`)
+            candidates.push(`${base}/${anim}.png`)
         }
-        candidates.push(`${SPRITES_BASE}/${resolvedPath}/${folder}/${spriteName}.png`)
+        // Kimono-style: color is a folder name, then universal/{sex}/{anim}.png
+        if (color) candidates.push(`${SPRITES_BASE}/${resolvedPath}/${color}/universal/${sexFolder}/${anim}.png`)
+        candidates.push(`${SPRITES_BASE}/${resolvedPath}/universal/${sexFolder}/${anim}.png`)
     }
-
-    // Fallback: no body-type folder (e.g. capes, quivers, accessories).
-    if (item.color) {
-        candidates.push(`${SPRITES_BASE}/${resolvedPath}/${spriteName}/${item.color}.png`)
-    }
-    candidates.push(`${SPRITES_BASE}/${resolvedPath}/${spriteName}.png`)
 
     return candidates
 }

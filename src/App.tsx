@@ -26,17 +26,15 @@ const theme = createTheme({
 })
 
 const demoCharacter = defineLpcCharacter({
-  animation: '1h_slash',
+  animation: 'walk',
   orientation: 'down',
-  body: { type: 'muscular' },
+  body: { type: 'male' },
   head: { style: 'human_female' },
   face: { style: 'neutral' },
   hair: { color: 'ginger', style: 'bangs_bun' },
   clothes: [
-    { spritePath: 'torso/aprons/overalls', color: 'green' },
-    { spritePath: 'legs/pants', color: 'black' },
     { spritePath: 'feet/boots/basic', color: 'brown' },
-    { spritePath: 'arms/gloves', color: 'black' }
+    { spritePath: 'dress/bodice' },
   ],
 })
 
