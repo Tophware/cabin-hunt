@@ -176,11 +176,19 @@ function createRenderableLayer(
 
 function buildHeadCandidates(resolved: ResolvedCharacter) {
     const spriteName = resolveLpcAnimationSpriteName(resolved.animation)
+    if (resolved.bodyType === 'child') {
+        return [`${SPRITES_BASE}/head/heads/human/child/${spriteName}.png`]
+    }
+
     const folder = HEAD_STYLE_TO_FOLDER[resolved.headStyle]
     return [`${SPRITES_BASE}/head/heads/human/${folder}/${spriteName}.png`]
 }
 
 function buildFaceCandidates(resolved: ResolvedCharacter) {
+    if (resolved.bodyType === 'child') {
+        return []
+    }
+
     const spriteName = resolveLpcAnimationSpriteName(resolved.animation)
     const folder = HEAD_STYLE_TO_FOLDER[resolved.headStyle]
     return [`${SPRITES_BASE}/head/faces/${folder}/neutral/${spriteName}.png`]
