@@ -4,7 +4,6 @@ import type { LpcCharacterConfig, LpcMissingLayerWarning } from '../types/lpc-ch
 
 interface LpcCharacterProps {
   character: LpcCharacterConfig
-  fps?: number
   scale?: number
   showDetails?: boolean
   showWarnings?: boolean
@@ -13,7 +12,6 @@ interface LpcCharacterProps {
 
 export function LpcCharacter({
   character,
-  fps = 8,
   scale = 3,
   showDetails = false,
   showWarnings = false,

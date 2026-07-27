@@ -17,11 +17,10 @@ export function LpcWalkingCharacter({
         <LpcCharacter
             character={{
                 animation: 'walk',
-                body: { type: 'muscular' },
+                body: { type: 'male' },
                 orientation: direction,
                 hair: { random: true },
             }}
-            fps={fps}
             scale={scale}
         />
     )
