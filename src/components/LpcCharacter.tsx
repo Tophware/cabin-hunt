@@ -1,29 +1,20 @@
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
 import { useEffect, useState } from 'react'
-import { Stack, Text, Group, Badge, Loader } from '@mantine/core'
+import { Stack, Text, Group, Badge, Loader, Box } from '@mantine/core'
 import type { LpcCharacterConfig, LpcMissingLayerWarning } from '../types/lpc-character'
 
 interface LpcCharacterProps {
   character: LpcCharacterConfig
   fps?: number
+  scale?: number
   showDetails?: boolean
   showWarnings?: boolean
   onMissingLayers?: (warnings: LpcMissingLayerWarning[]) => void
 }
 
-function Character3D() {
-  return (
-    <mesh>
-      <boxGeometry args={[1, 2, 1]} />
-      <meshStandardMaterial color="#8888ff" />
-    </mesh>
-  )
-}
-
 export function LpcCharacter({
   character,
   fps = 8,
+  scale = 3,
   showDetails = false,
   showWarnings = false,
   onMissingLayers,
@@ -57,14 +48,21 @@ export function LpcCharacter({
 
   return (
     <Stack gap="md" align="center">
-      <div style={{ width: '300px', height: '300px', border: '1px solid #444', borderRadius: '8px', background: '#1a1a1a' }}>
-        <Canvas camera={{ position: [0, 0, 3], fov: 50 }}>
-          <ambientLight intensity={0.5} />
-          <pointLight position={[10, 10, 10]} />
-          <Character3D />
-          <OrbitControls />
-        </Canvas>
-      </div>
+      <Box
+        style={{
+          width: `${300 * (scale / 3)}px`,
+          height: `${300 * (scale / 3)}px`,
+          border: '1px solid #444',
+          borderRadius: '8px',
+          background: '#1a1a1a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '48px',
+        }}
+      >
+        🧑
+      </Box>
 
       {showDetails && (
         <Stack gap="xs" align="center" style={{ fontSize: '12px' }}>
@@ -72,17 +70,23 @@ export function LpcCharacter({
             <Badge size="sm" variant="dot">
               {character.body.type}
             </Badge>
-            <Badge size="sm" variant="dot">
-              {character.head.style}
-            </Badge>
+            {character.head && (
+              <Badge size="sm" variant="dot">
+                {character.head.style}
+              </Badge>
+            )}
           </Group>
           <Group gap="xs">
-            <Badge size="sm" variant="dot">
-              {character.face.style}
-            </Badge>
-            <Badge size="sm" variant="dot">
-              {character.hair.color}
-            </Badge>
+            {character.face && (
+              <Badge size="sm" variant="dot">
+                {character.face.style}
+              </Badge>
+            )}
+            {character.hair?.color && (
+              <Badge size="sm" variant="dot">
+                {character.hair.color}
+              </Badge>
+            )}
           </Group>
         </Stack>
       )}
