@@ -100,7 +100,6 @@ export function CharacterCreatorPage() {
                         <Stack align="center" gap="xs">
                             <LpcCharacter
                                 character={character}
-                                fps={8}
                                 showDetails
                                 showWarnings
                                 onMissingLayers={handleMissingLayers}
